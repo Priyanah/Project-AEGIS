@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AEGIS | PROJECT STARK</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; background-color: #050505; color: #00ffcc; font-family: 'Courier New', monospace; overflow: hidden; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 20px; box-sizing: border-box; display: grid; grid-template-columns: 300px 1fr 300px; grid-template-rows: 100px 1fr 200px; z-index: 10; pointer-events: none; }
+        
+        /* HEADER */
+        .header { grid-column: 1 / 4; border-bottom: 2px solid #00ffcc; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.8); pointer-events: auto; }
+        h1 { margin: 0 20px; font-size: 24px; letter-spacing: 5px; text-shadow: 0 0 10px #00ffcc; }
+        
+        /* PANELS */
+        .panel { background: rgba(0, 20, 40, 0.7); border: 1px solid #004466; padding: 15px; margin: 10px; backdrop-filter: blur(5px); pointer-events: auto; }
+        .log-box { height: 100%; overflow-y: auto; font-size: 12px; color: #aaddff; }
+        .stat-box { text-align: center; }
+        .score-big { font-size: 48px; font-weight: bold; color: #fff; text-shadow: 0 0 20px #00ffcc; }
+        .seq-box { word-break: break-all; font-size: 10px; color: #00ffaa; opacity: 0.8; }
+        
+        /* 3D CONTAINER */
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.6; }
+
+        /* ANIMATIONS */
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        .status-blink { animation: pulse 1s infinite; color: #ff3333; font-weight: bold; }
+        .status-success { color: #33ff33; text-shadow: 0 0 10px #33ff33; }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <div class="header">
+            <h1>PROJECT AEGIS</h1>
+            <div style="margin-right: 20px;">TARGET: <span id="target-name">LOADING...</span> <span style="color:red">[DETECTED]</span></div>
+        </div>
+
+        <div class="panel" style="grid-row: 2 / 4;">
+            <h3>> DEEP THINK LOG</h3>
+            <div id="log-content" class="log-box">Initializing system connection...</div>
+        </div>
+
+        <div style="grid-column: 2; display: flex; justify-content: center; align-items: flex-end;">
+            <div class="panel" style="width: 80%; text-align: center;">
+                <h3>CURRENT CANDIDATE</h3>
+                <h2 id="candidate-name">WAITING...</h2>
+                <div id="sequence-display" class="seq-box">...</div>
+            </div>
+        </div>
+
+        <div class="panel" style="grid-row: 2 / 4;">
+            <h3>> BINDING AFFINITY</h3>
+            <div class="stat-box">
+                <div id="score-display" class="score-big">0.0</div>
+                <div style="font-size: 14px; color: #66ccff;">kcal/mol</div>
+            </div>
+            <hr style="border-color: #004466;">
+            <div style="margin-top: 20px;">
+                STATUS: <span id="sys-status" class="status-blink">OFFLINE</span>
+            </div>
+            <div style="margin-top: 20px; font-size: 12px;">
+                ITERATION: <span id="iter-count">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. THE 3D MOLECULE (Simple Helix Animation) ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Create a particle helix
+        const geometry = new THREE.BufferGeometry();
+        const counts = 2000;
+        const positions = new Float32Array(counts * 3);
+        for(let i=0; i<counts; i++) {
+            const t = i * 0.1;
+            positions[i*3] = Math.cos(t) * 2; // x
+            positions[i*3+1] = (i * 0.01) - 10; // y
+            positions[i*3+2] = Math.sin(t) * 2; // z
+        }
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.05 });
+        const helix = new THREE.Points(geometry, material);
+        scene.add(helix);
+        camera.position.z = 5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            helix.rotation.y += 0.01;
+            helix.rotation.z += 0.005;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- 2. THE DATA LINK (Reading the JSON file) ---
+        async function fetchData() {
+            try {
+                // Read the file generated by Python
+                const response = await fetch('dashboard_data.json?t=' + new Date().getTime());
+                const data = await response.json();
+
+                if (data.virus_name) {
+                    document.getElementById('target-name').innerText = data.virus_name;
+                }
+
+                // Update UI Elements
+                document.getElementById('score-display').innerText = data.score;
+                document.getElementById('candidate-name').innerText = data.candidate_name;
+                document.getElementById('sequence-display').innerText = data.sequence;
+                document.getElementById('iter-count').innerText = data.iteration;
+                
+                // Update Logs (Typewriter effect simulation)
+                const logBox = document.getElementById('log-content');
+                if (!logBox.innerText.includes(data.log)) {
+                    logBox.innerHTML = "Attempt " + data.iteration + ":<br>" + data.log + "<br><br>" + logBox.innerHTML;
+                }
+
+                // Status Logic
+                const statusEl = document.getElementById('sys-status');
+                statusEl.innerText = data.status;
+                if (data.status === "SUCCESS") {
+                    statusEl.className = "status-success";
+                    material.color.setHex(0x33ff33); // Turn helix green
+                } else {
+                    statusEl.className = "status-blink";
+                }
+
+            } catch (e) {
+                console.log("Waiting for data stream...");
+            }
+        }
+
+        // Poll every 1 second
+        setInterval(fetchData, 1000);
+
+    </script>
+</body>
+</html>
