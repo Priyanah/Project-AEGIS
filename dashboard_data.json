@@ -1,1 +1,1 @@
-{"virus_name": "Zika virus", "status": "SUCCESS", "iteration": 4, "candidate_name": "AEGIS-V4", "sequence": "RYLKIWLKEEKVAELLNQVAKVLKKLGEEALRNLARLVKQLVQDLQKAIEEQVAQLKA", "score": -8.2, "log": "OPTIMAL BINDING ACHIEVED."}
+{"virus_name": "Filovirus", "status": "SUCCESS", "iteration": 10, "candidate_name": "AEGIS-V10", "sequence": "CDGLSCTNVCKTVDGLVCQFHQKFSENLQYKVRVVRVDPDFCGKGYHLMSIKSCNSNLCNLTCECEEEKKAEE", "score": -9.8, "log": "OPTIMAL BINDING ACHIEVED."}

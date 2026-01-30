@@ -92,5 +92,5 @@ def analyze_pathogen(fasta_file_path):
         print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    file_name = "zika.fasta" # Change this to ebola_sample.fasta to test
+    file_name = "fasta_files/filoviridae.fasta" # Change this to ebola_sample.fasta to test
     analyze_pathogen(file_name)
