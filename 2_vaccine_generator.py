@@ -3,7 +3,9 @@ import time
 import json
 import re
 from dotenv import load_dotenv
+import requests
 from google import genai
+from google.genai import types # Added for proper config types
 
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
@@ -28,7 +30,7 @@ def load_target_data():
 
 VIRUS_NAME, TARGET_SEQUENCE = load_target_data()
 
-# --- 2. Dashboard Updater ---
+# --- 2. Dashboard ---
 def update_dashboard(iteration, candidate_name, sequence, score, log, status="THINKING"):
     data = {
         "virus_name": VIRUS_NAME,
@@ -63,7 +65,97 @@ def generate_with_retry(model, prompt):
         time.sleep(2)
         return client.models.generate_content(model=model, contents=prompt)
 
-# --- 4. THE AUTONOMOUS LOOP ---
+
+# --- 4. Safety check ---
+def safety_officer_agent(sequence):
+    """
+    Acts as the FDA Safety Reviewer.
+    Checks for toxicity, allergenicity, and instability.
+    """
+    print(f"   🛡️  Running Safety Protocol on candidate...")
+    
+    prompt = f"""
+    ROLE: You are a Senior Toxicologist and Safety Officer.
+    TASK: Analyze this protein sequence for potential safety risks in humans.
+    SEQUENCE: {sequence}
+
+    CHECKLIST:
+    1. TOXICITY: Does this sequence share motifs with known venoms, toxins, or cytolytic peptides?
+    2. ALLERGENICITY: Does it contain known allergenic epitopes?
+    3. IMMUNOGENICITY: Is it likely to trigger a dangerous cytokine storm?
+    4. HEMOLYSIS: Will it destroy red blood cells (common in cationic peptides)?
+
+    OUTPUT:
+    Return JSON only:
+    {{
+      "is_safe": true, 
+      "risk_level": "LOW/MEDIUM/HIGH",
+      "reason": "Short explanation of the verdict."
+    }}
+    (Note: If the risk is low/manageable, set "is_safe" to true. If high risk, false.)
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt
+        )
+        
+        # USE THE ROBUST EXTRACTOR (Fixes formatting issues)
+        result = extract_json_safely(response.text)
+
+        # ERROR FIX: Handle case where AI returns a List instead of a Dict
+        if isinstance(result, list):
+            if len(result) > 0:
+                result = result[0]
+            else:
+                return {"is_safe": False, "reason": "AI returned empty list", "risk_level": "UNKNOWN"}
+
+        # ERROR FIX: Handle case where AI returns None
+        if not result:
+             return {"is_safe": False, "reason": "AI JSON parsing failed", "risk_level": "UNKNOWN"}
+
+        return result
+
+    except Exception as e:
+        print(f"   ⚠️  Safety Check Error: {e}")
+        return {"is_safe": False, "reason": f"System Error: {e}", "risk_level": "UNKNOWN"}
+
+
+def get_structure_from_esm(sequence, candidate_name):
+    """
+    Calls Meta AI's ESMFold API to generate a 3D PDB structure.
+    Returns: Filename of the saved PDB or None if failed.
+    """
+    print(f"   🧬 Contacting ESMFold for 3D Structure...")
+    
+    # Meta's ESMFold API endpoint
+    url = "https://api.esmatlas.com/foldSequence/v1/pdb/"
+    
+    try:
+        response = requests.post(url, data=sequence, timeout=10)
+        
+        if response.status_code == 200:
+            pdb_content = response.text
+            if "ATOM" not in pdb_content:
+                print("   ⚠️  ESMFold returned invalid data.")
+                return None
+                
+            filename = f"{candidate_name}.pdb"
+            with open(filename, "w") as f:
+                f.write(pdb_content)
+            
+            print(f"   💾 3D Structure saved: {filename}")
+            return filename
+        else:
+            print(f"   ⚠️  ESMFold API Error: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"   ⚠️  Structure Prediction Failed: {e}")
+        return None
+
+# --- 5. THE AUTONOMOUS LOOP ---
 def stark_simulation_loop():
     print(f"🚀 AEGIS BACKEND STARTED. TARGET: {VIRUS_NAME}")
     print(f"🧬 Targeting Sequence Length: {len(TARGET_SEQUENCE)} residues")
@@ -78,11 +170,12 @@ def stark_simulation_loop():
     best_candidate = {
         "candidate_name": "None",
         "sequence": "None", 
-        "binding_score_dG": 0.0
+        "binding_score_dG": 0.0,
+        "deep_think_log": "Initial state."
     }
     
-    # We allow up to 4 iterations to let it "think"
-    for iteration in range(1, 5):
+    # We allow up to 10 iterations
+    for iteration in range(1, 11):
         update_dashboard(iteration, f"Generating V{iteration}...", "...", best_candidate['binding_score_dG'], "Analyzing molecular geometry... Deep Think active...", "THINKING")
         
         # --- THE REAL PROMPT (Scientific, not Forced) ---
@@ -122,6 +215,17 @@ def stark_simulation_loop():
         result = extract_json_safely(response.text)
         
         if result:
+            # --- NEW: SAFETY CHECK BEFORE ACCEPTING ---
+            candidate_seq = result.get("sequence", "")
+            safety_report = safety_officer_agent(candidate_seq)
+                        
+            if safety_report["is_safe"] == False:
+                 print(f"❌ REJECTED: {safety_report.get('reason', 'Unknown safety risk')}")
+                 continue
+            else:
+                 print(f"   ✅ APPROVED. Risk: {safety_report.get('risk_level', 'LOW')}")
+            # ------------------------------------------
+
             current_score = float(result['binding_score_dG'])
             
             # Logic: Did we improve?
@@ -129,11 +233,9 @@ def stark_simulation_loop():
             status = "SIMULATING"
             
             # Save the best one found so far
-            if current_score < best_candidate['binding_score_dG']: # Lower is better in negative dG? 
-                # Actually dG is negative, so -12 is 'smaller' than -5, but 'better' binding.
-                # Let's handle magnitude: More negative is better.
+            if current_score < best_candidate['binding_score_dG']: 
                 if current_score < -1.0: # Ensure it's valid
-                     if best_candidate['binding_score_dG'] == 0.0 or current_score < best_candidate['binding_score_dG']:
+                      if best_candidate['binding_score_dG'] == 0.0 or current_score < best_candidate['binding_score_dG']:
                         best_candidate = result
                         log_message += " [NEW BEST]"
 
@@ -150,10 +252,10 @@ def stark_simulation_loop():
             print(f"✅ Iteration {iteration}: {current_score} kcal/mol | {log_message[:50]}...")
             
             # AUTONOMOUS STOPPING CONDITION
-            # If we hit a "Drug Candidate" score, we stop early because we won.
             if current_score <= -10.5:
                 print("🎯 SUCCESS THRESHOLD REACHED. STOPPING OPTIMIZATION.")
                 best_candidate = result
+                get_structure_from_esm(best_candidate['sequence'], best_candidate['candidate_name'])
                 break
         else:
             print(f"⚠️ Iteration {iteration} failed to parse.")
@@ -188,6 +290,9 @@ def stark_simulation_loop():
     filename = f"BLUEPRINT_{VIRUS_NAME.replace(' ', '_')}.txt"
     with open(filename, "w") as f:
         f.write(blueprint_content)
+
+    if best_candidate.get('sequence') and best_candidate.get('sequence') != "None":
+        get_structure_from_esm(best_candidate['sequence'], best_candidate['candidate_name'])
         
     print(f"\n📄 BLUEPRINT GENERATED: {filename}")
     print("✅ SIMULATION COMPLETE.")
