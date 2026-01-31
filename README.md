@@ -1,22 +1,22 @@
 ## 🛡️ PROJECT AEGIS
 ### Autonomous Epidemic Genomic Intelligence System
-**From Virus to Vaccine in Minutes.**
+**From Virus to Binder Candidate in Minutes.**
 
 ---
 
 ## 📺 Project Demo
 Watch demo vide: https://vimeo.com/1159567855?share=copy&fl=sv&fe=ci
-> *Go the link above to watch AEGIS design a vaccine for the Zika Virus in real-time.*
+> *Go the link above to watch AEGIS design a Binder Candidate for the Zika Virus in real-time.*
 
 ---
 
 ## 💡 Inspiration
 The idea for AEGIS was born during the chaos of the COVID-19 pandemic. Humanity's response time—12 to 18 months for traditional drug discovery—is dangerously slow against rapidly mutating pathogens.
 
-I built AEGIS to answer one question: **"Why wait months for a vaccine when we have Artificial Intelligence?"**
+I built AEGIS to answer one question: **"Why wait months for a Binder Candidate when we have Artificial Intelligence?"**
 
 ## 🚀 What it does
-AEGIS is an end-to-end autonomous biodefense platform. It takes a raw genomic file (`.fasta`) as input and outputs a synthesis-ready vaccine blueprint.
+AEGIS is an end-to-end autonomous biodefense platform. It takes a raw genomic file (`.fasta`) as input and outputs a synthesis-ready Binder Candidate blueprint.
 
 **The Workflow:**
 1.  **The Watchtower:** Identifies the pathogen (e.g., SARS-CoV-2, Zika) from raw genetic data.
@@ -54,7 +54,7 @@ AEGIS is an end-to-end autonomous biodefense platform. It takes a raw genomic fi
 
 * **For the 3D Structure Image (The "Green Spiral"):**
 
-"Physics Validation (ESMFold): This is the actual 3D structure of the generated cure (AEGIS-V10). The tight alpha-helical fold proves the sequence is thermodynamically stable and not a 'disordered' string."
+"Physics Validation (ESMFold): This is the actual 3D structure of the generated Blueprint (AEGIS-V10). The tight alpha-helical fold proves the sequence is thermodynamically stable and not a 'disordered' string."
 
 <img width="1891" height="917" alt="image" src="https://github.com/user-attachments/assets/5437bd3a-9646-4bc8-88ab-1b2162a74a7e" />
 
@@ -82,7 +82,7 @@ AEGIS is an end-to-end autonomous biodefense platform. It takes a raw genomic fi
 2. Install dependencies: pip install -r requirements.txt
 
 3. Set up your API Key:
-  Open 1_pathogen_analyzer.py and 2_vaccine_generator.py.
+  Open 1_pathogen_analyzer.py and 2_Binder Candidate_generator.py.
 4. Paste your Gemini API key where indicated.
 
 **Run the System:**
@@ -90,8 +90,8 @@ AEGIS is an end-to-end autonomous biodefense platform. It takes a raw genomic fi
  Step 1: **Analyze the virus:**
 * python 1_pathogen_analyzer.py
 
- Step 2: **Generate the cure:**
-* python 2_vaccine_generator.py
+ Step 2: **Generate the Blueprint:**
+* python 2_Binder Candidate_generator.py
 
 Step 3: **View the Dashboard:**
 * Open index.html in your browser to see the 3D visualization.
